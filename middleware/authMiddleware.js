@@ -4,6 +4,7 @@ const User = require('../models/User');
 const protect = async (req, res, next) => {
   let token;
 
+
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith('Bearer')
@@ -17,12 +18,17 @@ const protect = async (req, res, next) => {
 
       // Get user from the token (exclude password)
       req.user = await User.findById(decoded.id).select('-password');
-
+console.log("JWT_SECRET:", process.env.JWT_SECRET);
+console.log("Token received:", token);
       next();
     } catch (error) {
-      console.error(error);
-      res.status(401).json({ message: 'Not authorized, token failed' });
-    }
+  if (error.name === "TokenExpiredError") {
+    return res.status(401).json({ message: "Token expired" });
+  }
+
+  return res.status(401).json({ message: "Not authorized, token failed" });
+}
+
   }
 
   if (!token) {
