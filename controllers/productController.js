@@ -8,20 +8,23 @@ const getProducts = async (req, res) => {
     const pageSize = 10;
     const page = Number(req.query.pageNumber) || 1;
 
-    // Search functionality: checks if 'keyword' is in name or description
+    // THE FIX IS HERE: Using MongoDB $or operator to search multiple fields
     const keyword = req.query.keyword
       ? {
-          name: {
-            $regex: req.query.keyword,
-            $options: 'i', // case insensitive
-          },
+          $or: [
+            { name: { $regex: req.query.keyword, $options: 'i' } }, // Matches Name
+            { description: { $regex: req.query.keyword, $options: 'i' } }, // Matches Description
+            { category: { $regex: req.query.keyword, $options: 'i' } }, // Matches Category
+            { sizes: { $regex: req.query.keyword, $options: 'i' } } // Matches inside Sizes array
+          ]
         }
       : {};
 
-    const count = await Product.countDocuments({ ...keyword });
+    // Use the keyword object directly
+    const count = await Product.countDocuments(keyword);
     
-    // Fetch products with search query, limit for pagination, and skip for pages
-    const products = await Product.find({ ...keyword })
+    // Fetch products matching any of the above fields
+    const products = await Product.find(keyword)
       .limit(pageSize)
       .skip(pageSize * (page - 1))
       .sort({ createdAt: -1 }); // Sort by newest first
@@ -40,7 +43,6 @@ const getProducts = async (req, res) => {
     });
   }
 };
-
 // @desc    Fetch single product by ID
 // @route   GET /api/products/:id
 // @access  Public
@@ -449,6 +451,63 @@ const createProductReview = async (req, res) => {
   }
 };
 
+
+// @desc    Get quick search suggestions (YouTube style)
+// @route   GET /api/products/search/suggestions?keyword=cot
+// @access  Public
+  const getSearchSuggestions = async (req, res) => {
+    try {
+      const keyword = req.query.keyword
+    ? {
+        $or: [
+          { name: { $regex: req.query.keyword, $options: 'i' } },
+          { description: { $regex: req.query.keyword, $options: 'i' } },
+          { category: { $regex: req.query.keyword, $options: 'i' } },
+          { sizes: { $regex: req.query.keyword, $options: 'i' } } 
+        ]
+      }
+    : {};
+      
+      if (!keyword) {
+        return res.json([]);
+      }
+
+      // 1. Search for matching categories (e.g., typing "cot" finds "Cotton")
+      const categories = await Product.distinct('category', {
+        category: { $regex: keyword, $options: 'i' }
+      });
+
+      // 2. Search for matching product names (limit to 5 for speed)
+      const products = await Product.find({
+        name: { $regex: keyword, $options: 'i' }
+      })
+      .select('name image.thumbnail _id category') // Only fetch what is needed
+      .limit(5);
+
+      // 3. Format the data for the frontend
+      const suggestions = [
+        ...categories.map(c => ({ type: 'category', text: c, id: c })),
+        ...products.map(p => ({ 
+          type: 'product', 
+          text: p.name, 
+          id: p._id, 
+          image: p.image?.thumbnail, 
+          category: p.category
+        }))
+      ];
+
+      res.json(suggestions);
+    } catch (error) {
+      console.error('Search suggestions error:', error);
+      res.status(500).json({ 
+        message: 'Error fetching search suggestions',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  };
+
+
+
 module.exports = {
   getProducts,
   getProductById,
@@ -457,5 +516,6 @@ module.exports = {
   deleteProduct,
   getTopProducts,
   getProductsByCategory,
-  createProductReview
+  createProductReview,
+  getSearchSuggestions
 };
