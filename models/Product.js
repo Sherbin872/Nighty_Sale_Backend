@@ -58,11 +58,10 @@ const productSchema = new mongoose.Schema({
     required: [true, 'Please add a brand'],
     trim: true
   },
-  category: {
+ category: {
     type: String,
     required: [true, 'Please add a category'],
-    enum: ['Cotton', 'Satin', 'Silk', 'Rayon', 'Maternity'],
-    index: true
+    index: true // Keep this! It makes your new Search Page very fast
   },
   description: {
     type: String,
@@ -95,9 +94,8 @@ const productSchema = new mongoose.Schema({
     default: 0,
     min: [0, 'Stock count cannot be negative']
   },
-  sizes: [{
+ sizes: [{
     type: String,
-    enum: ['M', 'L', 'XL', 'XXL', '3XL'],
     required: [true, 'Please add at least one size']
   }]
 }, {
