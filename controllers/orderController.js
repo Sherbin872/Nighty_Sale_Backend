@@ -43,26 +43,33 @@ const createOrder = async (req, res) => {
 // @desc    Get order by ID
 // @route   GET /api/orders/:id
 // @access  Private
+// @desc    Get order by ID
+// @route   GET /api/orders/:id
+// @access  Private (User or Admin)
 const getOrderById = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id)
-      .populate('user', 'name email');
+    // Populate adds the user's name and email to the order data
+    const order = await Order.findById(req.params.id).populate(
+      'user',
+      'name email'
+    );
 
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
+    if (order) {
+      // THE FIX IS HERE: Check for req.user.role === 'admin'
+      const isAdmin = req.user.role === 'admin';
+      const isOrderOwner = order.user._id.toString() === req.user._id.toString();
+
+      if (isAdmin || isOrderOwner) {
+        res.json(order);
+      } else {
+        res.status(403).json({ message: 'Not authorized to view this order' });
+      }
+    } else {
+      res.status(404).json({ message: 'Order not found' });
     }
-
-    // Ensure user owns order or is admin
-    if (
-      order.user._id.toString() !== req.user._id.toString() &&
-      !req.user.isAdmin
-    ) {
-      return res.status(403).json({ message: 'Not authorized' });
-    }
-
-    res.json(order);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Get Order By Id Error:', error);
+    res.status(500).json({ message: 'Server error fetching order details' });
   }
 };
 
