@@ -95,8 +95,8 @@ const productSchema = new mongoose.Schema({
     min: [0, 'Stock count cannot be negative']
   },
  sizes: [{
-    type: String,
-    required: [true, 'Please add at least one size']
+    size: { type: String, required: true },
+    stock: { type: Number, required: true, default: 0, min: 0 }
   }]
 }, {
   timestamps: true,

@@ -163,6 +163,40 @@ const updateOrderStatus = async (req, res) => {
 };
 
 
+// @desc    Delete an unpaid order (Payment cancelled/failed)
+// @route   DELETE /api/orders/:id
+// @access  Private
+const deleteOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Security Check: Only the order owner or an admin can delete it
+    const isAdmin = req.user.role === 'admin';
+    const isOrderOwner = order.user.toString() === req.user._id.toString();
+
+    if (!isAdmin && !isOrderOwner) {
+      return res.status(403).json({ message: 'Not authorized to delete this order' });
+    }
+
+    // Safety Check: Never delete an order that has already been paid
+    if (order.isPaid) {
+      return res.status(400).json({ message: 'Cannot delete an order that has already been paid' });
+    }
+
+    await order.deleteOne();
+    res.json({ message: 'Unpaid order removed successfully' });
+  } catch (error) {
+    console.error('Delete Order Error:', error);
+    res.status(500).json({ message: 'Server error deleting order' });
+  }
+};
+
+
+
 
 
 module.exports = {
@@ -172,4 +206,5 @@ module.exports = {
   updateOrderToPaid,
   getAllOrders,
   updateOrderStatus,
+  deleteOrder,
 };
