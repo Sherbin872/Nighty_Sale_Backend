@@ -13,14 +13,12 @@ const { protect, admin } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// USER ROUTES
+// USER ROUTES  
 router.post('/', protect, createOrder);
 router.get('/myorders', protect, getMyOrders);
-// router.get('/:id', protect, getOrderById);
+router.get('/:id', protect, getOrderById);
 router.put('/:id/pay', protect, updateOrderToPaid);
-router.route('/:id')
-  .get(protect, getOrderById)
-  .delete(protect, deleteOrder);
+router.delete('/:id',protect, deleteOrder);
 // ADMIN ROUTES
 router.get('/', protect, admin, getAllOrders);
 router.put('/:id/status', protect, admin, updateOrderStatus);
