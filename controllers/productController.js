@@ -76,6 +76,7 @@ const createProduct = async (req, res) => {
     const {
       name,
       price,
+      mrp,
       description,
       image,
       additionalImages = [],
@@ -132,6 +133,7 @@ const createProduct = async (req, res) => {
     const product = new Product({
       name: name.trim(),
       price: parseFloat(price),
+      mrp: parseFloat(mrp) || 0,
       description: description.trim(),
       image,
       additionalImages,
@@ -184,6 +186,7 @@ const updateProduct = async (req, res) => {
     const {
       name,
       price,
+      mrp,
       description,
       image,
       additionalImages,
@@ -219,6 +222,16 @@ const updateProduct = async (req, res) => {
         });
       }
       product.price = priceValue;
+    }
+
+    if (mrp !== undefined) {
+      const mrpValue = parseFloat(mrp);
+      if (mrpValue < 0) {
+        return res.status(400).json({
+          message: 'MRP cannot be negative'
+        });
+      }
+      product.mrp = mrpValue;
     }
     
     if (description !== undefined) {

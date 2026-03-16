@@ -88,6 +88,10 @@ const productSchema = new mongoose.Schema({
     default: 0,
     min: [0, 'Price cannot be negative']
   },
+  mrp: {
+    type: Number,
+    min: [0, 'MRP cannot be negative']
+  },
   countInStock: {
     type: Number,
     required: [true, 'Please add stock count'],
@@ -118,6 +122,14 @@ productSchema.virtual('inStock').get(function() {
 // Virtual for checking if product has multiple images
 productSchema.virtual('hasMultipleImages').get(function() {
   return this.additionalImages && this.additionalImages.length > 0;
+});
+
+// NEW: Automatically calculate the discount percentage!
+productSchema.virtual('discountPercentage').get(function() {
+  if (this.mrp && this.mrp > this.price) {
+    return Math.round(((this.mrp - this.price) / this.mrp) * 100);
+  }
+  return 0;
 });
 
 module.exports = mongoose.model('Product', productSchema);
