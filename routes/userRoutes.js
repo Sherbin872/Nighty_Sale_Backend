@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, authUser } = require('../controllers/authController');
+const { registerUser, authUser,sendEmailOtp, verifyEmailOtp } = require('../controllers/authController');
 const {
   getUsers,
   getUserById,
@@ -21,5 +21,7 @@ router.route('/:id')
   .get(protect, admin, getUserById)
   .put(protect, admin, updateUser)
   .delete(protect, admin, deleteUser);
+  router.post('/send-email-otp', sendEmailOtp);
+router.post('/verify-email-otp', verifyEmailOtp);
 
 module.exports = router;
