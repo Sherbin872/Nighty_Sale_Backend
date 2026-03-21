@@ -28,8 +28,7 @@ const userSchema = new mongoose.Schema({
     default: 'user'
   },
   phone: {
-    type: String,
-    required: [true, 'Please add a phone number']
+    type: String
   },
   address: {
     street: String,
