@@ -8,26 +8,25 @@ const getProducts = async (req, res) => {
     const pageSize = 10;
     const page = Number(req.query.pageNumber) || 1;
 
-    // THE FIX IS HERE: Using MongoDB $or operator to search multiple fields
+    // THE FIX: Use 'sizes.size' to search inside the array of objects safely
     const keyword = req.query.keyword
       ? {
           $or: [
-            { name: { $regex: req.query.keyword, $options: 'i' } }, // Matches Name
-            { description: { $regex: req.query.keyword, $options: 'i' } }, // Matches Description
-            { category: { $regex: req.query.keyword, $options: 'i' } }, // Matches Category
-            { sizes: { $regex: req.query.keyword, $options: 'i' } } // Matches inside Sizes array
+            { name: { $regex: req.query.keyword, $options: 'i' } }, 
+            { description: { $regex: req.query.keyword, $options: 'i' } }, 
+            { category: { $regex: req.query.keyword, $options: 'i' } }, 
+            { 'sizes.size': { $regex: req.query.keyword, $options: 'i' } }, // FIXED!
+            { brand: { $regex: req.query.keyword, $options: 'i' } }
           ]
         }
       : {};
 
-    // Use the keyword object directly
     const count = await Product.countDocuments(keyword);
     
-    // Fetch products matching any of the above fields
     const products = await Product.find(keyword)
       .limit(pageSize)
       .skip(pageSize * (page - 1))
-      .sort({ createdAt: -1 }); // Sort by newest first
+      .sort({ createdAt: -1 });
 
     res.json({ 
       products, 
@@ -37,12 +36,12 @@ const getProducts = async (req, res) => {
     });
   } catch (error) {
     console.error('Get products error:', error);
-    res.status(500).json({ 
-      message: 'Error fetching products',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    res.status(500).json({ message: 'Error fetching products' });
   }
 };
+
+
+
 // @desc    Fetch single product by ID
 // @route   GET /api/products/:id
 // @access  Public
@@ -464,60 +463,48 @@ const createProductReview = async (req, res) => {
   }
 };
 
-
 // @desc    Get quick search suggestions (YouTube style)
 // @route   GET /api/products/search/suggestions?keyword=cot
 // @access  Public
-  const getSearchSuggestions = async (req, res) => {
-    try {
-      const keyword = req.query.keyword
-    ? {
-        $or: [
-          { name: { $regex: req.query.keyword, $options: 'i' } },
-          { description: { $regex: req.query.keyword, $options: 'i' } },
-          { category: { $regex: req.query.keyword, $options: 'i' } },
-          { sizes: { $regex: req.query.keyword, $options: 'i' } } 
-        ]
-      }
-    : {};
+const getSearchSuggestions = async (req, res) => {
+  try {
+    // THE FIX: Keep keyword as a simple string here!
+    const keyword = req.query.keyword;
       
-      if (!keyword) {
-        return res.json([]);
-      }
-
-      // 1. Search for matching categories (e.g., typing "cot" finds "Cotton")
-      const categories = await Product.distinct('category', {
-        category: { $regex: keyword, $options: 'i' }
-      });
-
-      // 2. Search for matching product names (limit to 5 for speed)
-      const products = await Product.find({
-        name: { $regex: keyword, $options: 'i' }
-      })
-      .select('name image.thumbnail _id category') // Only fetch what is needed
-      .limit(5);
-
-      // 3. Format the data for the frontend
-      const suggestions = [
-        ...categories.map(c => ({ type: 'category', text: c, id: c })),
-        ...products.map(p => ({ 
-          type: 'product', 
-          text: p.name, 
-          id: p._id, 
-          image: p.image?.thumbnail, 
-          category: p.category
-        }))
-      ];
-
-      res.json(suggestions);
-    } catch (error) {
-      console.error('Search suggestions error:', error);
-      res.status(500).json({ 
-        message: 'Error fetching search suggestions',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+    if (!keyword) {
+      return res.json([]);
     }
-  };
+
+    // 1. Search for matching categories
+    const categories = await Product.distinct('category', {
+      category: { $regex: keyword, $options: 'i' }
+    });
+
+    // 2. Search for matching product names
+    const products = await Product.find({
+      name: { $regex: keyword, $options: 'i' }
+    })
+    .select('name image.thumbnail _id category')
+    .limit(5);
+
+    // 3. Format the data for the frontend
+    const suggestions = [
+      ...categories.map(c => ({ type: 'category', text: c, id: c })),
+      ...products.map(p => ({ 
+        type: 'product', 
+        text: p.name, 
+        id: p._id, 
+        image: p.image?.thumbnail, 
+        category: p.category
+      }))
+    ];
+
+    res.json(suggestions);
+  } catch (error) {
+    console.error('Search suggestions error:', error);
+    res.status(500).json({ message: 'Error fetching search suggestions' });
+  }
+};
 
 
 
