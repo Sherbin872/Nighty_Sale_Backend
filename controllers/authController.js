@@ -28,7 +28,8 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ message: "Request body is missing" });
     }
 
-    const { name, email, password, phone } = req.body;
+    // THE FIX: Destructure the new address fields from the frontend
+    const { name, email, password, phone, address, city, state, pinCode } = req.body;
 
     // 2. Validate required fields
     if (!name || !email || !password) {
@@ -44,12 +45,18 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // 4. Create user
+    // 4. Create user with nested address mapping (THE FIX)
     const user = await User.create({
       name,
       email,
       password,
       phone,
+      address: {
+        street: address,     // React 'address' -> Mongoose 'street'
+        city: city,          // React 'city' -> Mongoose 'city'
+        state: state,        // React 'state' -> Mongoose 'state'
+        postalCode: pinCode  // React 'pinCode' -> Mongoose 'postalCode'
+      }
     });
 
     // 5. Respond with token
@@ -58,7 +65,8 @@ const registerUser = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        role: user.role,    
+        address: user.address,
         token: generateToken(user._id),
       });
     }
@@ -89,6 +97,7 @@ const authUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        address: user.address,
         token: generateToken(user._id),
       });
     } else {
