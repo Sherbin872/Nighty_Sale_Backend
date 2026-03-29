@@ -6,18 +6,18 @@ const nodemailer = require('nodemailer');
 
 
 // 1. Setup Email Transporter (Use Gmail App Password)
-// 1. Setup Email Transporter (Updated for Render Production)
+// 1. Setup Email Transporter (Production Ready)
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
-  secure: true, // use SSL
+  secure: true, // Use SSL
+  family: 4,    // <-- THE MAGIC FIX: Force IPv4 connection to prevent ENETUNREACH on Render
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS  
   },
-  // THE MAGIC FIX FOR CLOUD HOSTING:
   tls: {
-    // Do not fail on invalid certs in cloud environments
+    // Prevents TLS errors in cloud hosting environments
     rejectUnauthorized: false
   }
 });
