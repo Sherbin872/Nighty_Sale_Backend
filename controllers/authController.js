@@ -3,26 +3,36 @@ const generateToken = require('../utils/generateToken');
 const Otp = require('../models/Otp'); // Import the new OTP model
 const nodemailer = require('nodemailer');
 
-
+console.log("=== INITIALIZING NODEMAILER TRANSPORTER ===");
+console.log("Email User configured as:", process.env.EMAIL_USER ? "YES (Hidden for security)" : "❌ UNDEFINED - CHECK RENDER ENV VARS");
+console.log("Email Pass configured as:", process.env.EMAIL_PASS ? "YES (Hidden for security)" : "❌ UNDEFINED - CHECK RENDER ENV VARS");
 
 // 1. Setup Email Transporter (Use Gmail App Password)
 // 1. Setup Email Transporter (Production Ready)
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // Use SSL
-  family: 4,    // <-- THE MAGIC FIX: Force IPv4 connection to prevent ENETUNREACH on Render
+  port: 587,
+  secure: false, // false for 587, it will upgrade via STARTTLS
+  family: 4,     // Force IPv4
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS  
   },
   tls: {
-    // Prevents TLS errors in cloud hosting environments
     rejectUnauthorized: false
-  }
+  },
+  logger: true,  // Turns on console logging
+  debug: true    // Dumps all SMTP traffic to the console
 });
 
-
+// Verify connection on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ TRANSPORTER VERIFICATION FAILED:", error);
+  } else {
+    console.log("✅ TRANSPORTER VERIFIED: Ready to send emails!");
+  }
+});
 
 
 
@@ -127,26 +137,30 @@ const authUser = async (req, res) => {
 const sendEmailOtp = async (req, res) => {
   try {
     const { email, name } = req.body;
+    console.log(`\n========== STARTING OTP PROCESS FOR: ${email} ==========`);
 
-    // Optional but recommended: Check if email is already registered
-  const userExists = await User.findOne({ email });
+    // 1. Check if email is already registered
+    const userExists = await User.findOne({ email });
     if (userExists) {
+      console.log(`[Step 1] User already exists. Aborting.`);
       return res.status(400).json({ 
         message: 'An account with this email already exists. Please sign in instead.' 
       });
     }
 
-    // Generate a random 6-digit OTP
+    // 2. Generate a random 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(`[Step 2] OTP Generated.`);
 
-    // Save to database (Upsert: Update if exists, otherwise create new)
+    // 3. Save to database (Upsert)
     await Otp.findOneAndUpdate(
       { email },
       { otp, createdAt: Date.now() },
       { upsert: true, new: true }
     );
+    console.log(`[Step 3] OTP Saved to Database.`);
 
-    // Send the email
+    // 4. Setup Mail Options
     const mailOptions = {
       from: `"Manavaatti Store" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -162,12 +176,30 @@ const sendEmailOtp = async (req, res) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
+    // 5. Send the email
+    console.log(`[Step 4] Calling transporter.sendMail()... WAITING FOR GOOGLE...`);
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log(`[Step 5] ✅ SUCCESS! Email accepted by Google. Message ID: ${info.messageId}`);
+    console.log(`========== OTP PROCESS COMPLETE ==========\n`);
 
     res.status(200).json({ message: 'OTP sent successfully to email' });
+    
   } catch (error) {
-    console.error('Send Email OTP Error:', error);
-    res.status(500).json({ message: 'Failed to send OTP email. Please try again.' });
+    // === CATCHING THE EXACT ERROR ===
+    console.error(`\n❌ [CRITICAL ERROR] transporter.sendMail() FAILED!`);
+    console.error(`Error Name:`, error.name);
+    console.error(`Error Code:`, error.code);
+    console.error(`Error Command:`, error.command);
+    console.error(`Full Error Message:`, error.message);
+    console.log(`========== OTP PROCESS ABORTED ==========\n`);
+    
+    // Send the exact error to the frontend
+    res.status(500).json({ 
+      message: 'Failed to send OTP email. Please try again.',
+      exactError: error.message,
+      code: error.code
+    });
   }
 };
 
