@@ -6,11 +6,19 @@ const nodemailer = require('nodemailer');
 
 
 // 1. Setup Email Transporter (Use Gmail App Password)
+// 1. Setup Email Transporter (Updated for Render Production)
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, // use SSL
   auth: {
-    user: process.env.EMAIL_USER, // e.g., 'yourstore@gmail.com'
-    pass: process.env.EMAIL_PASS  // e.g., 'abcd efgh ijkl mnop' (16-char App Password) nuts oogz vqwn rdxe
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS  
+  },
+  // THE MAGIC FIX FOR CLOUD HOSTING:
+  tls: {
+    // Do not fail on invalid certs in cloud environments
+    rejectUnauthorized: false
   }
 });
 
