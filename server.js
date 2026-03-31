@@ -11,13 +11,14 @@ const productRoutes = require('./routes/productRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const startCronJobs = require('./cronJobs');
 
 // Initialize App
 const app = express();
 
 // Connect to Database
 connectDB();
-
+startCronJobs();
 // 1. Security Middleware
 app.use(helmet()); // Secure HTTP headers
 app.use(cors()); // Allow Cross-Origin requests
